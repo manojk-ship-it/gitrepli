@@ -16,7 +16,7 @@ on:
         required: true
 
 env:
-  ARTIFACTORY: hts2.jfrog.io/girigithub-oci-local
+  ARTIFACTORY: hts2.jfrog.io/giridock-docker-local
   
 
 jobs:
