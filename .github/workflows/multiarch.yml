@@ -1,0 +1,69 @@
+name: Build & Push Multi-Arch Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+      container_name:
+        required: true
+        type: string
+    secrets:
+      ARTIFACTORY_SUP_TOKEN:
+        required: true
+      ARTIFACTORY_SUP_USER:
+        required: true
+
+env:
+  ARTIFACTORY: hts2.jfrog.io/girigithub-oci-local
+  ORGANIZATION: testing
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Log in to Artifactory
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ARTIFACTORY }}
+          username: ${{ secrets.ARTIFACTORY_SUP_USER }}
+          password: ${{ secrets.ARTIFACTORY_SUP_TOKEN }}
+
+      - name: Set current date for image tag
+        id: date
+        run: |
+          export TZ='Europe/Stockholm'
+          echo "date=$(date +%Y%m%d.%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Extract MAJOR, MINOR, PATCH from version
+        id: semver
+        run: |
+          VERSION=${{ inputs.version }}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          echo "MAJOR=$MAJOR" >> $GITHUB_OUTPUT
+          echo "MINOR=$MINOR" >> $GITHUB_OUTPUT
+          echo "PATCH=$PATCH" >> $GITHUB_OUTPUT
+
+      - name: Build and push multi-platform image to Artifactory
+        run: |
+          docker buildx create --use
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --tag "${{ env.ARTIFACTORY }}/${{ inputs.container_name }}:latest" \
+            --tag "${{ env.ARTIFACTORY }}/${{ inputs.container_name }}:${{ steps.semver.outputs.MAJOR }}.${{ steps.semver.outputs.MINOR }}.${{ steps.semver.outputs.PATCH }}" \
+            --push .
+
+
+
+
+
+
+
+
