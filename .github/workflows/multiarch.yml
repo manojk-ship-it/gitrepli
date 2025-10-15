@@ -17,7 +17,7 @@ on:
 
 env:
   ARTIFACTORY: hts2.jfrog.io/girigithub-oci-local
-  ORGANIZATION: testing
+  
 
 jobs:
   build-and-push:
