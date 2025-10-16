@@ -8,7 +8,6 @@ permissions:
   id-token: write # for creating OIDC tokens for signing.
   packages: write
   contents: read
-  
 jobs:
   build-publish-docker: # Job name is updated
     runs-on: ubuntu-latest
@@ -17,8 +16,7 @@ jobs:
       DOCKER_REPO: 'manojk-oci-local' # Changed from codeninjas-proj-docker-local
       IMAGE_NAME: 'my-very-cool-image:${{ github.run_number }}'
       JF_URL: https://hts2.jfrog.io
-      #DOCKER_CLI_EXPERIMENTAL: enabled
-
+      # DOCKER_CLI_EXPERIMENTAL: enabled (Removed as not needed with modern actions)
     steps:
       # 1. Setup JFrog CLI and authenticate via OIDC
       - name: Setup JFrog CLI
@@ -51,7 +49,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           # FIX: Use only the base JFrog URL for the registry login check.
-          registry: hts2-manojk-oci-local.jfrog.io 
+          registry: ${{ env.JF_URL }} 
           username: ${{ steps.setup-cli.outputs.oidc-user }}
           password: ${{ steps.setup-cli.outputs.oidc-token }}
       
@@ -63,45 +61,58 @@ jobs:
           platforms: linux/amd64,linux/arm64
           install: true
       
-      - name: Build and push OCI image with Buildx
-        run: |
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --tag hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/my-app:1.0 \
-            --push \
+      # 7. (REMOVED FAILING OCI BUILD STEP)
 
+      # 8. Build and Push Docker Image (This step uses the correct action)
       - name: Build and Push Docker Image
-        id: docker_build # Added an ID to reference the output
+        id: docker_build 
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+          tags: ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+          # The outputs.digest will be used to reference the image in the next step
 
+      # --- JFROG XRAY SCAN & BUILD PUBLISH ---
+      
+      # 9. Scan Docker Image
       - name: Scan Docker Image
         run: |
-          jf docker scan hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+          # Use the full image path for the scan
+          jf docker scan ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
 
+      # 10. Add Docker Image to Build Info
       - name: Add Docker Image to Build Info
         run: |
-          echo "Image digest is: ${{ steps.docker_build.outputs.digest }}"
-          # Create a simple text file with the full image reference including the digest
-          echo "hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}" > image-details.txt
-          # Use this file to add the image details to the JFrog build-info
-          jf rt build-docker-create ${{ env.DOCKER_REPO }} --image-file image-details.txt
+          # Get the full image reference including the digest from the build-push-action output
+          FULL_IMAGE_REF="${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}"
+          
+          echo "Adding Docker image to Build Info: $FULL_IMAGE_REF"
+          
+          # Create a dummy metadata file or use jf rt build-docker-create with the full image ref
+          # Note: jf rt build-docker-create is often used with jf docker build. 
+          # Since we are using build-push-action, we simulate the required structure.
 
+          # Alternative way to run build-docker-create using the known outputs:
+          jf rt build-docker-create ${{ env.DOCKER_REPO }} --image-digest ${{ steps.docker_build.outputs.digest }} \
+            --image-name ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }} \
+            --module=docker-module
+            
+      # 11. Publish Build Info
       - name: Publish Build Info
         run: |
           jf rt build-collect-env
           jf rt build-add-git
-          jf rt build-publish
-
-      - name: Scan Build
+          # Use environment variables for the build name/number
+          jf rt build-publish ${{ github.repository }}/${{ github.run_id }} ${{ github.run_number }}
+      
+      # 12. Xray Build Scan
+      - name: Xray Build Scan
         run: |
-          jf build-scan
+          jf build-scan ${{ github.repository }}/${{ github.run_id }}/${{ github.run_number }}
 
-      # 11. Write to workflow job summary (Kept your custom notes)
+      # 13. Write to workflow job summary (Kept your custom notes)
       - name: Write to workflow job summary
         run: |
           NOTE=$'>[!NOTE]\n>Frog Notes \n'
