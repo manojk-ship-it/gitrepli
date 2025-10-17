@@ -15,7 +15,7 @@ jobs:
     env:
       # --- UPDATED ENVIRONMENT VARIABLES ---
       DOCKER_REPO: 'manojk-oci-local' # Changed from codeninjas-proj-docker-local
-      IMAGE_NAME: 'my-OCI-PKG:${{ github.run_number }}'
+      IMAGE_NAME: 'my-oci-pkg:${{ github.run_number }}'
       JF_URL: https://hts2.jfrog.io
       #DOCKER_CLI_EXPERIMENTAL: enabled
 
@@ -67,7 +67,7 @@ jobs:
         run: |
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --tag hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/my-oci-app:2.0 \
+            --tag hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/my-oci-app:3.0 \
             --push \
             .
 
