@@ -8,14 +8,17 @@ permissions:
   id-token: write # for creating OIDC tokens for signing.
   packages: write
   contents: read
+  
 jobs:
   build-publish-docker: # Job name is updated
     runs-on: ubuntu-latest
     env:
       # --- UPDATED ENVIRONMENT VARIABLES ---
-      DOCKER_REPO: 'manojk-oci-local'
+      DOCKER_REPO: 'manojk-oci-local' # Changed from codeninjas-proj-docker-local
       IMAGE_NAME: 'my-very-cool-image:${{ github.run_number }}'
       JF_URL: https://hts2.jfrog.io
+      #DOCKER_CLI_EXPERIMENTAL: enabled
+
     steps:
       # 1. Setup JFrog CLI and authenticate via OIDC
       - name: Setup JFrog CLI
@@ -25,18 +28,18 @@ jobs:
           JF_URL: https://hts2.jfrog.io
           JF_PROJECT: ${{ vars.JF_PROJECT }}
         with:
-          oidc-provider-name: manojk-oci
+          oidc-provider-name: manojk-oci # Corrected indentation for 'with' block properties
 
       # 2. Verify OIDC Outputs (Optional debug step)
       - name: Verify OIDC Outputs
         run: |
           echo "OIDC User: ${{ steps.setup-cli.outputs.oidc-user }}"
           echo "OIDC Token available: ${{ steps.setup-cli.outputs.oidc-token != '' }}"
-
+      
       # 3. Checkout the repository code
       - name: Checkout the repository
         uses: actions/checkout@v4
-
+      
       # --- DOCKER BUILD & PUSH STEPS ---
 
       # 4. Set up QEMU (for multi-platform builds, kept for robustness)
@@ -47,12 +50,11 @@ jobs:
       - name: Authenticate Docker to JFrog Registry
         uses: docker/login-action@v3
         with:
-          # FIX: Reverting to JF_URL as the registry name is not resolvable via DNS.
-          # The base URL is the correct Artifactory host for Docker login.
-          registry: ${{ env.JF_URL }}/artifactory
+          # FIX: Use only the base JFrog URL for the registry login check.
+          registry: hts2-manojk-oci-local.jfrog.io 
           username: ${{ steps.setup-cli.outputs.oidc-user }}
           password: ${{ steps.setup-cli.outputs.oidc-token }}
-
+      
       # 6. Setup Buildx Instance
       - name: Setup Buildx instance
         uses: docker/setup-buildx-action@v3
@@ -60,55 +62,46 @@ jobs:
           use: true
           platforms: linux/amd64,linux/arm64
           install: true
+      
+      - name: Build and push OCI image with Buildx
+        run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --tag hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/my-app:1.0 \
+            --push \
 
-      # 7. (REMOVED FAILING OCI BUILD STEP) - Implicitly removed
-
-      # 8. Build and Push Docker Image (This step uses the correct action)
       - name: Build and Push Docker Image
-        id: docker_build
+        id: docker_build # Added an ID to reference the output
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
-          # The outputs.digest will be used to reference the image in the next step
+          tags: hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
 
-      # --- JFROG XRAY SCAN & BUILD PUBLISH ---
-
-      # 9. Scan Docker Image
       - name: Scan Docker Image
         run: |
-          # Use the full image path for the scan
-          jf docker scan ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+          jf docker scan hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
 
-      # 10. Add Docker Image to Build Info
       - name: Add Docker Image to Build Info
         run: |
-          # Get the full image reference including the digest from the build-push-action output
-          FULL_IMAGE_REF="${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}"
+          echo "Image digest is: ${{ steps.docker_build.outputs.digest }}"
+          # Create a simple text file with the full image reference including the digest
+          echo "hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}" > image-details.txt
+          # Use this file to add the image details to the JFrog build-info
+          jf rt build-docker-create ${{ env.DOCKER_REPO }} --image-file image-details.txt
 
-          echo "Adding Docker image to Build Info: $FULL_IMAGE_REF"
-
-          # Alternative way to run build-docker-create using the known outputs:
-          jf rt build-docker-create ${{ env.DOCKER_REPO }} --image-digest ${{ steps.docker_build.outputs.digest }} \
-            --image-name ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }} \
-            --module=docker-module
-
-      # 11. Publish Build Info
       - name: Publish Build Info
         run: |
           jf rt build-collect-env
           jf rt build-add-git
-          # Use environment variables for the build name/number
-          jf rt build-publish ${{ github.repository }}/${{ github.run_id }} ${{ github.run_number }}
+          jf rt build-publish
 
-      # 12. Xray Build Scan
-      - name: Xray Build Scan
+      - name: Scan Build
         run: |
-          jf build-scan ${{ github.repository }}/${{ github.run_id }}/${{ github.run_number }}
+          jf build-scan
 
-      # 13. Write to workflow job summary (Kept your custom notes)
+      # 11. Write to workflow job summary (Kept your custom notes)
       - name: Write to workflow job summary
         run: |
           NOTE=$'>[!NOTE]\n>Frog Notes \n'
