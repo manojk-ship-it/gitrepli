@@ -47,9 +47,9 @@ jobs:
       - name: Authenticate Docker to JFrog Registry
         uses: docker/login-action@v3
         with:
-          # FIX: Use the DOCKER_REPO environment variable as the registry
-          # This assumes Artifactory is configured for repository-path or sub-domain access
-          registry: ${{ env.DOCKER_REPO }} 
+          # FIX: Reverting to JF_URL as the registry name is not resolvable via DNS.
+          # The base URL is the correct Artifactory host for Docker login.
+          registry: ${{ env.JF_URL }} 
           username: ${{ steps.setup-cli.outputs.oidc-user }}
           password: ${{ steps.setup-cli.outputs.oidc-token }}
 
