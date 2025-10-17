@@ -67,7 +67,7 @@ jobs:
         run: |
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --tag hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/My-OCI-app:2.0 \
+            --tag hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/My-oci-app:2.0 \
             --push \
             .
 
