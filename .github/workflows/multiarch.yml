@@ -67,7 +67,7 @@ jobs:
         run: |
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --tag hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/my-app:1.0 \
+            --tag ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/my-app:1.0 \
             --push \
 
       - name: Build and Push Docker Image
@@ -77,7 +77,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+          tags: ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
 
       - name: Scan Docker Image
         run: |
