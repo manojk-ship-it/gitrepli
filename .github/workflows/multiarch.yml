@@ -44,14 +44,15 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 5. Authenticate Docker with OIDC Token (FIXED TO USE NATIVE DOCKER LOGIN)
-      # This bypasses the JFrog CLI wrapper sensitivity to piping.
+      # 5. Authenticate Docker with OIDC Token (REVERTING TO ACTION)
+      # If this fails, the OIDC configuration in Artifactory must be checked.
       - name: Authenticate Docker to JFrog Registry
-        run: |
-          # The password must be echoed and piped directly into docker login's --password-stdin
-          echo "${{ steps.setup-cli.outputs.oidc-token }}" | docker login ${{ env.JF_URL }} \
-            --username ${{ steps.setup-cli.outputs.oidc-user }} \
-            --password-stdin
+        uses: docker/login-action@v3
+        with:
+          # Use only the host name (no https://) for the registry parameter
+          registry: hts2.jfrog.io 
+          username: ${{ steps.setup-cli.outputs.oidc-user }}
+          password: ${{ steps.setup-cli.outputs.oidc-token }}
 
       # 6. Setup Buildx Instance
       - name: Setup Buildx instance
@@ -71,7 +72,8 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+          # Note: We must now use the hostname only here, without https://
+          tags: hts2.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
           # The outputs.digest will be used to reference the image in the next step
 
       # --- JFROG XRAY SCAN & BUILD PUBLISH ---
@@ -79,20 +81,20 @@ jobs:
       # 9. Scan Docker Image
       - name: Scan Docker Image
         run: |
-          # Use the full image path for the scan
-          jf docker scan ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+          # Use the full image path for the scan (must match the push tag format)
+          jf docker scan hts2.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
 
       # 10. Add Docker Image to Build Info
       - name: Add Docker Image to Build Info
         run: |
           # Get the full image reference including the digest from the build-push-action output
-          FULL_IMAGE_REF="${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}"
+          FULL_IMAGE_REF="hts2.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}"
           
           echo "Adding Docker image to Build Info: $FULL_IMAGE_REF"
           
           # Alternative way to run build-docker-create using the known outputs:
           jf rt build-docker-create ${{ env.DOCKER_REPO }} --image-digest ${{ steps.docker_build.outputs.digest }} \
-            --image-name ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }} \
+            --image-name hts2.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }} \
             --module=docker-module
             
       # 11. Publish Build Info
