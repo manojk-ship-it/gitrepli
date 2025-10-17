@@ -77,7 +77,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.JF_URL }}/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+          tags: ${{ env.JF_URL }}/artifactory/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
 
       - name: Scan Docker Image
         run: |
