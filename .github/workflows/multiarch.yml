@@ -48,7 +48,7 @@ jobs:
       # Using jf rt docker-login handles the specific OIDC token requirements for Artifactory.
       - name: Authenticate Docker to JFrog Registry (via JFrog CLI)
         run: |
-          echo "${{ steps.setup-cli.outputs.oidc-token }}" | jf rt docker-login ${{ env.JF_URL }} \
+          echo "${{ steps.setup-cli.outputs.oidc-token }}" | jf rt docker login ${{ env.JF_URL }} \
             --user ${{ steps.setup-cli.outputs.oidc-user }} \
             --password-stdin
 
