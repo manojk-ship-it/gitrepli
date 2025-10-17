@@ -1,4 +1,4 @@
-name: build-publish-scan-docker
+ame: build-publish-scan-docker
 on:
   push:
     branches:
@@ -44,12 +44,13 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 5. Authenticate Docker with JFrog CLI (REPLACED DOCKER LOGIN ACTION)
-      # Using jf rt docker-login handles the specific OIDC token requirements for Artifactory.
-      - name: Authenticate Docker to JFrog Registry (via JFrog CLI)
+      # 5. Authenticate Docker with OIDC Token (FIXED TO USE NATIVE DOCKER LOGIN)
+      # This bypasses the JFrog CLI wrapper sensitivity to piping.
+      - name: Authenticate Docker to JFrog Registry
         run: |
-          echo "${{ steps.setup-cli.outputs.oidc-token }}" | jf docker login ${{ env.JF_URL }} \
-            --user ${{ steps.setup-cli.outputs.oidc-user }} \
+          # The password must be echoed and piped directly into docker login's --password-stdin
+          echo "${{ steps.setup-cli.outputs.oidc-token }}" | docker login ${{ env.JF_URL }} \
+            --username ${{ steps.setup-cli.outputs.oidc-user }} \
             --password-stdin
 
       # 6. Setup Buildx Instance
