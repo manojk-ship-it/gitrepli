@@ -80,6 +80,18 @@ jobs:
           push: true
           tags: hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
 
+      - name: Pull Docker Image for Local Scan
+        run: |
+          FULL_IMAGE_TAG="hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}"
+          echo "Pulling image: $FULL_IMAGE_TAG"
+          # The image is pulled from Artifactory, using the authenticated Docker login
+          docker pull $FULL_IMAGE_TAG
+          
+      #- name: Scan Docker Image
+        # This command will now succeed because the image is locally available
+       # run: |
+        #  jf docker scan hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
+
       - name: Scan Docker Image
         run: |
           jf docker scan hts2-manojk-oci-local.jfrog.io/${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}
