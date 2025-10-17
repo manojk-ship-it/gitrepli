@@ -15,7 +15,7 @@ jobs:
       # --- UPDATED ENVIRONMENT VARIABLES ---
       DOCKER_REPO: 'manojk-oci-local'
       IMAGE_NAME: 'my-very-cool-image:${{ github.run_number }}'
-      JF_URL: https://hts2.jfrog.io
+      JF_URL: https://hts2.jfrog.io/v2/
     steps:
       # 1. Setup JFrog CLI and authenticate via OIDC
       - name: Setup JFrog CLI
