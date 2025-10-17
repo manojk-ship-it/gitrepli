@@ -1,4 +1,4 @@
-ame: build-publish-scan-docker
+name: build-publish-scan-docker
 on:
   push:
     branches:
